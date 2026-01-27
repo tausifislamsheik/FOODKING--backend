@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client"
@@ -12,7 +7,6 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-
 
 enum UserRole {
   CUSTOMER
@@ -28,86 +22,155 @@ enum OrderStatus {
   CANCELLED
 }
 
-
 model ProviderProfile {
-  id            String   @id @default(uuid())
-  businessName  String
-  address       String
-  description   String?
-  userId        String   @unique
-  // user          User     @relation(fields: [userId], references: [id])
-  meals         Meal[]   // Meals offered by this provider
-}
+  id           String  @id @default(uuid())
+  businessName String
+  address      String
+  description  String?
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals        Meal[]
 
+  @@map("providerProfile")
+}
 
 model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique // e.g., "Italian", "Vegan"
+  id          String  @id @default(uuid())
+  name        String  @unique
   description String?
-  meals       Meal[]   // Relation to menu items
+  meals       Meal[]
+
+  @@map("category")
 }
 
-// 5. Meals Table
 model Meal {
   id          String          @id @default(uuid())
   name        String
   description String
   price       Float
-  image       String?         
-  isAvailable Boolean         @default(true) // Required for Provider features
+  image       String?
+  isAvailable Boolean         @default(true)
   providerId  String
   provider    ProviderProfile @relation(fields: [providerId], references: [id])
-  
   categoryId  String
   category    Category        @relation(fields: [categoryId], references: [id])
-  
   orderItems  OrderItem[]
   reviews     Review[]
-  
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([providerId])
-  @@map("Meals")
+  @@map("meals")
 }
 
-
-model Order {
-  id            String      @id @default(uuid())
-  status        OrderStatus @default(PLACED)
-  totalAmount   Float
-  deliveryAddr  String
-  userId        String
-  // customer      User        @relation(fields: [userId], references: [id])
-  items         OrderItem[]
-
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-}
-
-
-model OrderItem {
-  id      String @id @default(uuid())
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id])
-  mealId  String
-  meal    Meal   @relation(fields: [mealId], references: [id])
-  quantity Int
-}
-
-
-model Review {
-  id        String   @id @default(uuid())
-  rating    Int      // 1-5
-  comment   String
-  userId    String
-  // user      User     @relation(fields: [userId], references: [id])
-  mealId    String
-  meal      Meal     @relation(fields: [mealId], references: [id])
-
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+model Orders {
+  id           String      @id @default(uuid())
+  status       OrderStatus @default(PLACED)
+  totalAmount  Float
+  deliveryAddr String
+  userId       String
+  customer     User        @relation(fields: [userId], references: [id])
+  items        OrderItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([userId])
-  @@map("Reviews")
+  @@map("orders")
+}
+
+model OrderItem {
+  id       String @id @default(uuid())
+  orderId  String
+  order    Orders  @relation(fields: [orderId], references: [id])
+  mealId   String
+  meal     Meal   @relation(fields: [mealId], references: [id])
+  quantity Int
+
+  @@map("orderItem")
+}
+
+model Review {
+  id      String @id @default(uuid())
+  rating  Int // 1-5
+  comment String
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  mealId  String
+  meal    Meal   @relation(fields: [mealId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("reviews")
+}
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          UserRole @default(CUSTOMER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions        Session[]
+  accounts        Account[]
+  providerProfile ProviderProfile?
+  orders          Orders[]
+  reviews         Review[]
+
+  phone  String?
+  status String? @default("ACTIVE")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }
