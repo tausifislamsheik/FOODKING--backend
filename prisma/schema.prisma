@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum OrderStatus {
+  PLACED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+
+model ProviderProfile {
+  id            String   @id @default(uuid())
+  businessName  String
+  address       String
+  description   String?
+  userId        String   @unique
+  // user          User     @relation(fields: [userId], references: [id])
+  meals         Meal[]   // Meals offered by this provider
+}
+
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., "Italian", "Vegan"
+  description String?
+  meals       Meal[]   // Relation to menu items
+}
+
+// 5. Meals Table
+model Meal {
+  id          String          @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  image       String?         
+  isAvailable Boolean         @default(true) // Required for Provider features
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id])
+  
+  categoryId  String
+  category    Category        @relation(fields: [categoryId], references: [id])
+  
+  orderItems  OrderItem[]
+  reviews     Review[]
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([providerId])
+  @@map("Meals")
+}
+
+
+model Order {
+  id            String      @id @default(uuid())
+  status        OrderStatus @default(PLACED)
+  totalAmount   Float
+  deliveryAddr  String
+  userId        String
+  // customer      User        @relation(fields: [userId], references: [id])
+  items         OrderItem[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+  mealId  String
+  meal    Meal   @relation(fields: [mealId], references: [id])
+  quantity Int
+}
+
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int      // 1-5
+  comment   String
+  userId    String
+  // user      User     @relation(fields: [userId], references: [id])
+  mealId    String
+  meal      Meal     @relation(fields: [mealId], references: [id])
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
+  @@map("Reviews")
+}
