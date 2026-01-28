@@ -7,6 +7,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
 enum OrderStatus {
   PLACED
   PREPARING
@@ -31,6 +43,7 @@ model ProviderProfile {
 
   @@map("provider_profile")
 }
+
 
 model Category {
   id          String  @id @default(uuid())
@@ -68,6 +81,9 @@ model Cart {
   user   User       @relation(fields: [userId], references: [id])
   items  CartItem[]
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("cart")
 }
 
@@ -84,44 +100,58 @@ model CartItem {
 }
 
 model Order {
-  id            String          @id @default(uuid())
-  status        OrderStatus     @default(PLACED)
-  totalAmount   Float
-  deliveryAddr  String
-  paymentMethod PaymentMethod   @default(COD)
-  providerId    String
-  provider      ProviderProfile @relation(fields: [providerId], references: [id])
-  userId        String
-  customer      User            @relation(fields: [userId], references: [id])
-  items         OrderItem[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                   String               @id @default(uuid())
+  status               OrderStatus          @default(PLACED)
+  totalAmount          Float
+  deliveryAddress      String
+  paymentMethod        PaymentMethod        @default(COD)
+  userId               String
+  customer             User                 @relation(fields: [userId], references: [id])
+  providerProfileId    String
+  providerProfile      ProviderProfile      @relation(fields: [providerProfileId], references: [id])
+  items                OrderItem[]
+  orderStatusHistories OrderStatusHistory[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
   @@index([userId])
+  @@index([providerProfileId])
   @@map("orders")
 }
+
+
 
 model OrderItem {
   id       String @id @default(uuid())
   orderId  String
-  price    Float
   order    Order  @relation(fields: [orderId], references: [id])
   mealId   String
   meal     Meal   @relation(fields: [mealId], references: [id])
+  price    Float  
   quantity Int
 
   @@map("order_items")
 }
 
-model Review {
-  id      String @id @default(uuid())
-  rating  Int
-  comment String
-  userId  String
-  user    User   @relation(fields: [userId], references: [id])
-  mealId  String
-  meal    Meal   @relation(fields: [mealId], references: [id])
 
+model OrderStatusHistory {
+  id        String      @id @default(uuid())
+  orderId   String
+  status    OrderStatus
+  order     Order       @relation(fields: [orderId], references: [id])
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  mealId    String
+  meal      Meal     @relation(fields: [mealId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -131,25 +161,23 @@ model Review {
 }
 
 model User {
-  id            String  @id
-  name          String
-  email         String  @unique
-  emailVerified Boolean @default(false)
-  image         String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id              String           @id
+  name            String
+  email           String           @unique
+  emailVerified   Boolean          @default(false)
+  image           String?
+  role            UserRole         @default(CUSTOMER)
+  status          UserStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   sessions        Session[]
   accounts        Account[]
   providerProfile ProviderProfile?
-  order           Order[]
+  orders          Order[]
   reviews         Review[]
 
-  phone  String?
-  role   String? @default("CUSTOMER")
-  status String? @default("ACTIVE")
-  cart   Cart?
+  phone String?
+  cart  Cart?
 
   @@map("user")
 }
