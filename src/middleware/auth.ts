@@ -1,11 +1,8 @@
-import { auth as betterAuth } from "../lib/auth";
 import { NextFunction, Request, Response } from "express";
+import { auth as betterAuth } from "../lib/auth";
+import { UserRole } from "../../generated/prisma/enums";
 
-export enum UserRole {
-  Customer = "CUSTOMER",
-  Provider = "PROVIDER",
-  Admin = "ADMIN",
-}
+
 
 declare global {
   namespace Express {
@@ -14,17 +11,18 @@ declare global {
         id: string;
         email: string;
         name: string;
-        role: string;
+        role: UserRole;
         emailVerified: boolean;
       };
     }
   }
 }
 
-const auth = (...roles: UserRole[]) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+
+const auth =
+  (...roles: UserRole[]) =>
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log(req.headers);
       const session = await betterAuth.api.getSession({
         headers: req.headers as any,
       });
@@ -39,7 +37,7 @@ const auth = (...roles: UserRole[]) => {
       if (!session.user.emailVerified) {
         return res.status(403).json({
           success: false,
-          message: "Email verification required.Please verify your email",
+          message: "Email verification required. Please verify your email.",
         });
       }
 
@@ -47,25 +45,22 @@ const auth = (...roles: UserRole[]) => {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name,
-        role: session.user.role as string,
+        role: session.user.role as UserRole,
         emailVerified: session.user.emailVerified,
       };
 
-      if (roles.length && !roles.includes(req.user.role as UserRole)) {
+      if (roles.length > 0 && !roles.includes(req.user.role)) {
         return res.status(403).json({
           success: false,
           message:
-            "Forbidden! You don't have permission to access this resources",
+            "Forbidden! You don't have permission to access this resource",
         });
       }
 
       next();
-    } catch (err) {
-      next(err);
+    } catch (error) {
+      next(error);
     }
   };
-};
-
-
 
 export default auth;
